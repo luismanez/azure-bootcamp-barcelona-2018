@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "sqlObject": {
+      "value": {
+        "sqlServerVersion": "12.0",
+        "sqlServerAdministratorLogin": "webappsqlserverAdmin",
+        "sqlServerAdministratorLoginPassword": "!Passw0rd2018",
+        "sqlDatabaseEdition": "Basic",
+        "sqlDatabaseRequestedServiceObjectiveName": "Basic",
+        "sqlDatabaseCollation": "SQL_Latin1_General_CP1_CI_AS",
+        "sqlDatabaseMaxSizeBytes": "2147483648",
+        "numberOffirewallRules": 2,
+        "firewallRules": [
+          {
+            "firewallRuleName": "AllowAllWindowsAzureIps",
+            "firewallRuleStartIpAddress": "0.0.0.0",
+            "firewallRuleEndIpAddress": "0.0.0.0"
+          },
+          {
+            "firewallRuleName": "MyPersonalComputerIP",
+            "firewallRuleStartIpAddress": "192.168.1.1",
+            "firewallRuleEndIpAddress": "192.168.1.1"
+          }
+        ]
+      }
+    },
+    "webAppName": {
+      "value": "AzureBootcamp2018WebApp"
+    },
+    "webAppObject": {
+      "value": {
+        "servicePlanName": "AzureBootcamp2018WebAppSP",
+        "servicePlanTier": "B1",
+        "webAppProperties": {
+          "use32BitWorkerProcess": false,
+          "alwaysOn": false
+        },
+        "webAppSettings": {
+          "WEBSITE_NODE_DEFAULT_VERSION": "6.9.1",
+          "SCM_COMMAND_IDLE_TIMEOUT": "43200",
+          "WEBJOBS_IDLE_TIMEOUT": "43200"
+        },
+        "webAppInisghtsLocation": "North Europe"
+      }
+    }
+  }
+}

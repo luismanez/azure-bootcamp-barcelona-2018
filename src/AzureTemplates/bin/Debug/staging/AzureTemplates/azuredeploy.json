@@ -1,0 +1,222 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "sqlObject": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "Indicates the SQL Server and the SQL databse information. sqlServerVersion allowed values are 2.0 or 12.0. sqlDatabaseEdition allowed values are Basic, Standard or Premium. sqlDatabaseRequestedServiceObjectiveName allowed values are Basic, S0, S1, S2, P1, P2 or P3. numberOffirewallRules is the number of firewall rules that you will include in the SQL Server."
+      }
+    },
+    "webAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Indicates the name of the web app"
+      }
+    },
+    "webAppObject": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "Indicates some data related to the web app like the service plan, and some of the properties of the web app. The service plan tier allowed values are: F1, D1, B1, B2, B3, S1, S2, S3, P1, P2, P3 or P4"
+      }
+    },
+    "WebAppDeployPackageStorageName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the storage account in which the deploy package is deployed"
+      }
+    },
+    "WebAppDeployPackageContainerName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the container of the storage account in which is the deploy package"
+      }
+    },
+    "WebAppDeployPackageFileName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the deploy package"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "SAS token of the storage account in which the deploy package is deployed"
+      }
+    }
+  },
+  "variables": {
+    "webAppServicePlanId": "[resourceId('Microsoft.Web/serverfarms', parameters('webAppObject').servicePlanName)]",
+    "sqlServerNameLowercase": "[toLower(parameters('sqlObject').sqlServerName)]"
+  },
+  "resources": [
+    {
+      "name": "[variables('sqlServerNameLowercase')]",
+      "type": "Microsoft.Sql/servers",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "Sql Server"
+      },
+      "apiVersion": "2014-04-01-preview",
+      "properties": {
+        "version": "[parameters('sqlObject').sqlServerVersion]",
+        "administratorLogin": "[parameters('sqlObject').sqlServerAdministratorLogin]",
+        "administratorLoginPassword": "[parameters('sqlObject').sqlServerAdministratorLoginPassword]"
+      },
+      "resources": [
+        {
+          "name": "[parameters('sqlObject').sqlDatabaseName]",
+          "type": "databases",
+          "location": "[resourceGroup().location]",
+          "tags": {
+            "displayName": "Database"
+          },
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers/', variables('sqlServerNameLowercase'))]"
+          ],
+          "properties": {
+            "edition": "[parameters('sqlObject').sqlDatabaseEdition]",
+            "collation": "[parameters('sqlObject').sqlDatabaseCollation]",
+            "maxSizeBytes": "[parameters('sqlObject').sqlDatabaseMaxSizeBytes]",
+            "requestedServiceObjectiveName": "[parameters('sqlObject').sqlDatabaseRequestedServiceObjectiveName]"
+          }
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers/firewallrules",
+      "apiVersion": "2014-04-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/', variables('sqlServerNameLowercase'))]"
+      ],
+      "location": "[resourceGroup().location]",
+      "name": "[concat(variables('sqlServerNameLowercase'), '/', parameters('sqlObject').firewallRules[copyindex()].firewallRuleName)]",
+      "copy": {
+        "name": "sqlFirewallLoop",
+        "count": "[parameters('sqlObject').numberOffirewallRules]"
+      },
+      "properties": {
+        "endIpAddress": "[parameters('sqlObject').firewallRules[copyindex()].firewallRuleEndIpAddress]",
+        "startIpAddress": "[parameters('sqlObject').firewallRules[copyindex()].firewallRuleStartIpAddress]"
+      }
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "name": "[parameters('webAppObject').servicePlanName]",
+      "type": "Microsoft.Web/serverfarms",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "Service Plan"
+      },
+      "sku": {
+        "name": "[parameters('webAppObject').servicePlanTier]"
+      },
+      "properties": {
+        "name": "[parameters('webAppObject').servicePlanName]"
+      }
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "name": "[parameters('webAppName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms/', parameters('webAppObject').servicePlanName)]"
+      ],
+      "tags": {
+        "displayName": "Web app"
+      },
+      "properties": {
+        "name": "[parameters('webAppName')]",
+        "serverFarmId": "[variables('webAppServicePlanId')]"
+      },
+      "resources": [
+        {
+          "name": "MSDeploy",
+          "type": "extensions",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2015-08-01",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('webAppName'))]"
+          ],
+          "tags": {
+            "displayName": "Web deploy"
+          },
+          "properties": {
+            "packageUri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', parameters('WebAppDeployPackageStorageName')), '2016-01-01').primaryEndpoints.blob, parameters('WebAppDeployPackageContainerName'), '/', parameters('WebAppDeployPackageFileName'), parameters('_artifactsLocationSasToken'))]",
+            "dbType": "None",
+            "connectionString": "",
+            "setParameters": {
+              "IIS Web Application Name": "[parameters('webAppName')]"
+            }
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "config",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', parameters('webAppName'))]",
+            "[resourceId('Microsoft.Web/sites/extensions', parameters('webAppName'), 'MSDeploy')]"
+          ],
+          "properties": "[parameters('webAppObject').webAppProperties]"
+        },
+        {
+          "name": "appsettings",
+          "type": "config",
+          "apiVersion": "2015-08-01",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('webAppName'))]",
+            "[resourceId('Microsoft.Web/sites/extensions', parameters('webAppName'), 'MSDeploy')]",
+            "[resourceId('Microsoft.Insights/components', parameters('webAppName'))]"
+          ],
+          "properties": {
+            "WEBSITE_NODE_DEFAULT_VERSION": "[parameters('webAppObject').webAppSettings.WEBSITE_NODE_DEFAULT_VERSION]",
+            "SCM_COMMAND_IDLE_TIMEOUT": "[parameters('webAppObject').webAppSettings.SCM_COMMAND_IDLE_TIMEOUT]",
+            "WEBJOBS_IDLE_TIMEOUT": "[parameters('webAppObject').webAppSettings.WEBJOBS_IDLE_TIMEOUT]",
+            "appinsights:iKey": "[reference(concat('Microsoft.Insights/components/', parameters('webAppName')), '2014-04-01').InstrumentationKey]"
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "type": "config",
+          "name": "connectionstrings",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('webAppName'))]",
+            "[resourceId('Microsoft.Web/sites/extensions', parameters('webAppName'), 'MSDeploy')]",
+            "[resourceId('Microsoft.Sql/servers/', variables('sqlServerNameLowercase'))]"
+          ],
+          "properties": {
+            "SQLServerConnectionString": {
+              "value": "[concat('Server=tcp:', reference(concat('Microsoft.Sql/servers/', variables('sqlServerNameLowercase')), '2014-04-01-preview').fullyQualifiedDomainName, ',1433;Initial Catalog=', parameters('sqlObject').sqlDatabaseName, ';Persist Security Info=False;User ID=', parameters('sqlObject').sqlServerAdministratorLogin, ';Password=', parameters('sqlObject').sqlServerAdministratorLoginPassword, ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;')]",
+              "type": "SQLAzure"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "name": "[parameters('webAppName')]",
+      "type": "Microsoft.Insights/components",
+      "location": "[parameters('webAppObject').webAppInisghtsLocation]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/Sites', parameters('webAppName'))]",
+        "[resourceId('Microsoft.Web/sites/extensions', parameters('webAppName'), 'MSDeploy')]"
+      ],
+      "tags": {
+        "displayName": "Application Insights"
+      },
+      "properties": {
+        "ApplicationId": "[resourceId('Microsoft.Web/sites', parameters('webAppName'))]"
+      }
+    }
+  ],
+  "outputs": {
+    "AzBoot2018WebAppHostName": {
+      "type": "string",
+      "value": "[reference(parameters('webAppName')).defaultHostName]"
+    }
+  }
+}
