@@ -27,11 +27,11 @@
       }
     },
     "webAppName": {
-      "value": "AzureBootcamp2018WebApp"
+      "value": "AzBootIvanLuis2018WebApp"
     },
     "webAppObject": {
       "value": {
-        "servicePlanName": "AzureBootcamp2018WebAppSP",
+        "servicePlanName": "AzBootIvanLuis2018WebAppSP",
         "servicePlanTier": "B1",
         "webAppProperties": {
           "use32BitWorkerProcess": false,

@@ -5,8 +5,8 @@
 Param(
     [string] $SubscriptionID = "09c96f87-1e5d-4e5c-8ffa-92cda699793c",
     [string] $ResourceGroupLocation = "North Europe",
-    [string] $ResourceGroupName = "WebAppAzureBootcamp2018",	
-    [string] $sqlServerName = "WebAppSqlServerAzBoot2018",
+    [string] $ResourceGroupName = "IvanLuisAzureBootcamp2018",	
+    [string] $sqlServerName = "IvanLuisSqlServerAzBoot2018",
     [string] $sqlServerDbName = "webAppDB",
     [switch] $UploadArtifacts,
     [string] $StorageAccountName,
